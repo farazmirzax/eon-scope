@@ -3,14 +3,32 @@
 import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useLoader } from "@react-three/fiber";
-import LocationMarker from "./LocationMarker";
+import type { FeatureCollection } from "geojson";
 
-export default function Earth() {
+import LocationMarker from "./LocationMarker";
+import PaleoCoastlines from "./PaleoCoastlines";
+
+interface EarthProps {
+  latitude: number;
+  longitude: number;
+  time: number;
+  coastlineData: FeatureCollection | null;
+}
+
+export default function Earth({
+  latitude,
+  longitude,
+  time,
+  coastlineData,
+}: EarthProps) {
   const earthRef = useRef<THREE.Mesh>(null);
 
   const [dayTexture, normalTexture] = useLoader(
     THREE.TextureLoader,
-    ["/textures/earth-day.jpg", "/textures/earth-normal.jpg"]
+    [
+      "/textures/earth-day.jpg",
+      "/textures/earth-normal.jpg",
+    ]
   );
 
   useFrame(() => {
@@ -19,24 +37,38 @@ export default function Earth() {
     }
   });
 
+  const isPresent = time === 0;
+
   return (
     <>
-      {/* Earth */}
       <mesh ref={earthRef}>
         <sphereGeometry args={[2, 64, 64]} />
 
-        <meshStandardMaterial
-          map={dayTexture}
-          normalMap={normalTexture}
-          roughness={0.75}
-          metalness={0.05}
-        />
+        {isPresent ? (
+          <meshStandardMaterial
+            map={dayTexture}
+            normalMap={normalTexture}
+            roughness={0.75}
+            metalness={0.05}
+          />
+        ) : (
+          <meshStandardMaterial
+            color="#071d4a"
+            roughness={0.9}
+            metalness={0}
+          />
+        )}
 
-        {/* Lucknow marker */}
-        <LocationMarker />
+        {time > 0 && coastlineData && (
+          <PaleoCoastlines data={coastlineData} />
+        )}
+
+        <LocationMarker
+          latitude={latitude}
+          longitude={longitude}
+        />
       </mesh>
 
-      {/* Atmosphere */}
       <mesh scale={1.025}>
         <sphereGeometry args={[2, 64, 64]} />
 

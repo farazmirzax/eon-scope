@@ -5,8 +5,10 @@ import * as THREE from "three";
 const EARTH_RADIUS = 2;
 const MARKER_OFFSET = 0.04;
 
-const LUCKNOW_LATITUDE = 26.8467;
-const LUCKNOW_LONGITUDE = 80.9462;
+interface LocationMarkerProps {
+  latitude: number;
+  longitude: number;
+}
 
 function latLonToVector3(
   latitude: number,
@@ -23,10 +25,13 @@ function latLonToVector3(
   );
 }
 
-export default function LocationMarker() {
+export default function LocationMarker({
+  latitude,
+  longitude,
+}: LocationMarkerProps) {
   const position = latLonToVector3(
-    LUCKNOW_LATITUDE,
-    LUCKNOW_LONGITUDE,
+    latitude,
+    longitude,
     EARTH_RADIUS + MARKER_OFFSET
   );
 
