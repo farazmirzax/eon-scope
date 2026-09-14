@@ -1,0 +1,54 @@
+"use client";
+
+import { useRef } from "react";
+import * as THREE from "three";
+import { useFrame, useLoader } from "@react-three/fiber";
+import LocationMarker from "./LocationMarker";
+
+export default function Earth() {
+  const earthRef = useRef<THREE.Mesh>(null);
+
+  const [dayTexture, normalTexture] = useLoader(
+    THREE.TextureLoader,
+    ["/textures/earth-day.jpg", "/textures/earth-normal.jpg"]
+  );
+
+  useFrame(() => {
+    if (earthRef.current) {
+      earthRef.current.rotation.y += 0.0015;
+    }
+  });
+
+  return (
+    <>
+      {/* Earth */}
+      <mesh ref={earthRef}>
+        <sphereGeometry args={[2, 64, 64]} />
+
+        <meshStandardMaterial
+          map={dayTexture}
+          normalMap={normalTexture}
+          roughness={0.75}
+          metalness={0.05}
+        />
+
+        {/* Lucknow marker */}
+        <LocationMarker />
+      </mesh>
+
+      {/* Atmosphere */}
+      <mesh scale={1.025}>
+        <sphereGeometry args={[2, 64, 64]} />
+
+        <meshBasicMaterial
+          color="#4da6ff"
+          transparent
+          opacity={0.18}
+          side={THREE.BackSide}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+    </>
+  );
+}
