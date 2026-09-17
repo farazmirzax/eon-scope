@@ -11,49 +11,57 @@ interface PaleoLandProps {
   data: FeatureCollection;
 }
 
-function latLonToVector3(
+function latLonToVector2(
   latitude: number,
-  longitude: number,
-  radius: number
+  longitude: number
 ) {
-  const phi = THREE.MathUtils.degToRad(90 - latitude);
-  const theta = THREE.MathUtils.degToRad(longitude + 180);
-
-  return new THREE.Vector3(
-    -radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
-  );
+  return new THREE.Vector2(longitude, latitude);
 }
 
-function triangulateRing(
-  ring: number[][]
+function triangulatePolygon(
+  rings: number[][][]
 ): number[] {
-  if (ring.length < 4) {
+  if (!rings.length || rings[0].length < 4) {
     return [];
   }
 
-  const points = ring.slice(0, -1).map(
-    ([longitude, latitude]) =>
-      new THREE.Vector2(longitude, latitude)
-  );
+  const contour = rings[0]
+    .slice(0, -1)
+    .map(([longitude, latitude]) =>
+      latLonToVector2(latitude, longitude)
+    );
+
+  const holes = rings
+    .slice(1)
+    .filter((ring) => ring.length >= 4)
+    .map((ring) =>
+      ring
+        .slice(0, -1)
+        .map(([longitude, latitude]) =>
+          latLonToVector2(latitude, longitude)
+        )
+    );
 
   const triangles =
     THREE.ShapeUtils.triangulateShape(
-      points,
-      []
+      contour,
+      holes
     );
+
+  const points = [
+    ...contour,
+    ...holes.flat(),
+  ];
 
   const positions: number[] = [];
 
   for (const triangle of triangles) {
     for (const index of triangle) {
-      const [longitude, latitude] =
-        ring[index];
+      const point = points[index];
 
       const position = latLonToVector3(
-        latitude,
-        longitude,
+        point.y,
+        point.x,
         EARTH_RADIUS + LAND_OFFSET
       );
 
@@ -66,6 +74,30 @@ function triangulateRing(
   }
 
   return positions;
+}
+
+function latLonToVector3(
+  latitude: number,
+  longitude: number,
+  radius: number
+) {
+  const phi =
+    THREE.MathUtils.degToRad(90 - latitude);
+
+  const theta =
+    THREE.MathUtils.degToRad(longitude + 180);
+
+  return new THREE.Vector3(
+    -radius *
+      Math.sin(phi) *
+      Math.cos(theta),
+
+    radius * Math.cos(phi),
+
+    radius *
+      Math.sin(phi) *
+      Math.sin(theta)
+  );
 }
 
 export default function PaleoLand({
@@ -82,20 +114,17 @@ export default function PaleoLand({
       }
 
       if (geometry.type === "Polygon") {
-        const outerRing =
-          geometry.coordinates[0];
-
         positions.push(
-          ...triangulateRing(outerRing)
+          ...triangulatePolygon(
+            geometry.coordinates
+          )
         );
       }
 
       if (geometry.type === "MultiPolygon") {
         for (const polygon of geometry.coordinates) {
-          const outerRing = polygon[0];
-
           positions.push(
-            ...triangulateRing(outerRing)
+            ...triangulatePolygon(polygon)
           );
         }
       }

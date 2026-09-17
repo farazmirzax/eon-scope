@@ -7,6 +7,7 @@ import type { FeatureCollection } from "geojson";
 
 import LocationMarker from "./LocationMarker";
 import PaleoCoastlines from "./PaleoCoastlines";
+import PaleoLand from "./Paleoland";
 
 interface EarthProps {
   latitude: number;
@@ -23,13 +24,14 @@ export default function Earth({
 }: EarthProps) {
   const earthRef = useRef<THREE.Mesh>(null);
 
-  const [dayTexture, normalTexture] = useLoader(
-    THREE.TextureLoader,
-    [
-      "/textures/earth-day.jpg",
-      "/textures/earth-normal.jpg",
-    ]
-  );
+  const [dayTexture, normalTexture] =
+    useLoader(
+      THREE.TextureLoader,
+      [
+        "/textures/earth-day.jpg",
+        "/textures/earth-normal.jpg",
+      ]
+    );
 
   useFrame(() => {
     if (earthRef.current) {
@@ -53,14 +55,22 @@ export default function Earth({
           />
         ) : (
           <meshStandardMaterial
-            color="#071d4a"
+            color="#06152f"
             roughness={0.9}
             metalness={0}
           />
         )}
 
         {time > 0 && coastlineData && (
-          <PaleoCoastlines data={coastlineData} />
+          <>
+            <PaleoLand
+              data={coastlineData}
+            />
+
+            <PaleoCoastlines
+              data={coastlineData}
+            />
+          </>
         )}
 
         <LocationMarker
