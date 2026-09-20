@@ -3,35 +3,39 @@
 import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useLoader } from "@react-three/fiber";
-import type { FeatureCollection } from "geojson";
 
 import LocationMarker from "./LocationMarker";
-import PaleoCoastlines from "./PaleoCoastlines";
-import PaleoLand from "./Paleoland";
 
 interface EarthProps {
   latitude: number;
   longitude: number;
   time: number;
-  coastlineData: FeatureCollection | null;
 }
+
+const EARTH_RADIUS = 2;
+const PALEO_MAP_OFFSET = 0.008;
 
 export default function Earth({
   latitude,
   longitude,
   time,
-  coastlineData,
 }: EarthProps) {
   const earthRef = useRef<THREE.Mesh>(null);
 
-  const [dayTexture, normalTexture] =
-    useLoader(
-      THREE.TextureLoader,
-      [
-        "/textures/earth-day.jpg",
-        "/textures/earth-normal.jpg",
-      ]
-    );
+  const paleoTextureUrl =
+    time > 0
+      ? `/api/paleomap?time=${time}`
+      : "/textures/earth-day.jpg";
+
+  const [dayTexture, normalTexture, paleoTexture] =
+    useLoader(THREE.TextureLoader, [
+      "/textures/earth-day.jpg",
+      "/textures/earth-normal.jpg",
+      paleoTextureUrl,
+    ]);
+
+  dayTexture.colorSpace = THREE.SRGBColorSpace;
+  paleoTexture.colorSpace = THREE.SRGBColorSpace;
 
   useFrame(() => {
     if (earthRef.current) {
@@ -44,7 +48,10 @@ export default function Earth({
   return (
     <>
       <mesh ref={earthRef}>
-        <sphereGeometry args={[2, 64, 64]} />
+        {/* Base Earth */}
+        <sphereGeometry
+          args={[EARTH_RADIUS, 64, 64]}
+        />
 
         {isPresent ? (
           <meshStandardMaterial
@@ -61,24 +68,38 @@ export default function Earth({
           />
         )}
 
-        {time > 0 && coastlineData && (
-          <>
-            <PaleoLand
-              data={coastlineData}
+        {/* Reconstructed paleo-Earth */}
+        {time > 0 && (
+          <mesh
+            scale={[
+              1 +
+                PALEO_MAP_OFFSET / EARTH_RADIUS,
+              1 +
+                PALEO_MAP_OFFSET / EARTH_RADIUS,
+              1 +
+                PALEO_MAP_OFFSET / EARTH_RADIUS,
+            ]}
+          >
+            <sphereGeometry
+              args={[EARTH_RADIUS, 64, 64]}
             />
 
-            <PaleoCoastlines
-              data={coastlineData}
+            <meshBasicMaterial
+              map={paleoTexture}
+              transparent
+              depthWrite={false}
             />
-          </>
+          </mesh>
         )}
 
+        {/* Lucknow paleo-position marker */}
         <LocationMarker
           latitude={latitude}
           longitude={longitude}
         />
       </mesh>
 
+      {/* Atmosphere */}
       <mesh scale={1.025}>
         <sphereGeometry args={[2, 64, 64]} />
 

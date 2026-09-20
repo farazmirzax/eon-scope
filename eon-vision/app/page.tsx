@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import type { FeatureCollection } from "geojson";
 
 import Earth from "@/components/Earth";
 import TimeSlider from "@/components/TimeSlider";
@@ -29,13 +28,7 @@ export default function Home() {
     PRESENT_LONGITUDE
   );
 
-  const [coastlineData, setCoastlineData] =
-    useState<FeatureCollection | null>(null);
-
   const [loading, setLoading] = useState(false);
-  const [coastlineLoading, setCoastlineLoading] =
-    useState(false);
-
   const [error, setError] = useState(false);
 
   // Reconstruct Lucknow's position
@@ -45,6 +38,7 @@ export default function Home() {
       setLongitude(PRESENT_LONGITUDE);
       setLoading(false);
       setError(false);
+
       return;
     }
 
@@ -94,63 +88,16 @@ export default function Home() {
     };
   }, [time]);
 
-  // Retrieve reconstructed coastlines
-  useEffect(() => {
-    if (time === 0) {
-      setCoastlineData(null);
-      setCoastlineLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const timeout = setTimeout(async () => {
-      try {
-        setCoastlineLoading(true);
-
-        const response = await fetch(
-          `/api/coastlines?time=${time}`,
-          {
-            signal: controller.signal,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Coastline request failed."
-          );
-        }
-
-        const data: FeatureCollection =
-          await response.json();
-
-        setCoastlineData(data);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.name === "AbortError"
-        ) {
-          return;
-        }
-
-        console.error(error);
-        setCoastlineData(null);
-      } finally {
-        setCoastlineLoading(false);
-      }
-    }, 700);
-
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [time]);
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-black">
       {/* 3D Earth */}
       <div className="absolute inset-0">
-        <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
+        <Canvas
+          camera={{
+            position: [0, 0, 6],
+            fov: 45,
+          }}
+        >
           <ambientLight intensity={0.6} />
 
           <directionalLight
@@ -162,7 +109,6 @@ export default function Home() {
             latitude={latitude}
             longitude={longitude}
             time={time}
-            coastlineData={coastlineData}
           />
 
           <OrbitControls
@@ -213,9 +159,9 @@ export default function Home() {
           </p>
         )}
 
-        {coastlineLoading && (
+        {time > 0 && !loading && !error && (
           <p className="mt-1 text-xs text-white/40">
-            Rebuilding ancient geography...
+            Rebuilt from GPlates paleogeography
           </p>
         )}
 
