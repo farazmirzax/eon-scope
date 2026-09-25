@@ -1,8 +1,16 @@
 "use client";
 
-import { useRef } from "react";
+import {
+  Suspense,
+  useRef,
+} from "react";
+
 import * as THREE from "three";
-import { useFrame, useLoader } from "@react-three/fiber";
+
+import {
+  useFrame,
+  useLoader,
+} from "@react-three/fiber";
 
 import LocationMarker from "./LocationMarker";
 
@@ -15,93 +23,139 @@ interface EarthProps {
 const EARTH_RADIUS = 2;
 const PALEO_MAP_OFFSET = 0.008;
 
+function PresentEarth() {
+  const [dayTexture, normalTexture] =
+    useLoader(
+      THREE.TextureLoader,
+      [
+        "/textures/earth-day.jpg",
+        "/textures/earth-normal.jpg",
+      ]
+    );
+
+  dayTexture.colorSpace =
+    THREE.SRGBColorSpace;
+
+  return (
+    <mesh>
+      <sphereGeometry
+        args={[
+          EARTH_RADIUS,
+          64,
+          64,
+        ]}
+      />
+
+      <meshStandardMaterial
+        map={dayTexture}
+        normalMap={normalTexture}
+        roughness={0.75}
+        metalness={0.05}
+      />
+    </mesh>
+  );
+}
+
+function PaleoEarth({
+  time,
+}: {
+  time: number;
+}) {
+  const texture = useLoader(
+    THREE.TextureLoader,
+    `/api/paleomap?time=${time}&v=2`
+  );
+
+  texture.colorSpace =
+    THREE.SRGBColorSpace;
+
+  return (
+    <>
+      {/* Ocean base */}
+      <mesh>
+        <sphereGeometry
+          args={[
+            EARTH_RADIUS,
+            64,
+            64,
+          ]}
+        />
+
+        <meshStandardMaterial
+          color="#06152f"
+          roughness={0.9}
+          metalness={0}
+        />
+      </mesh>
+
+      {/* GPlates reconstructed geography */}
+      <mesh
+        scale={
+          1 +
+          PALEO_MAP_OFFSET /
+            EARTH_RADIUS
+        }
+      >
+        <sphereGeometry
+          args={[
+            EARTH_RADIUS,
+            64,
+            64,
+          ]}
+        />
+
+        <meshBasicMaterial
+          map={texture}
+          transparent
+          depthWrite={false}
+        />
+      </mesh>
+    </>
+  );
+}
+
 export default function Earth({
   latitude,
   longitude,
   time,
 }: EarthProps) {
-  const earthRef = useRef<THREE.Mesh>(null);
-
-  const paleoTextureUrl =
-    time > 0
-      ? `/api/paleomap?time=${time}`
-      : "/textures/earth-day.jpg";
-
-  const [dayTexture, normalTexture, paleoTexture] =
-    useLoader(THREE.TextureLoader, [
-      "/textures/earth-day.jpg",
-      "/textures/earth-normal.jpg",
-      paleoTextureUrl,
-    ]);
-
-  dayTexture.colorSpace = THREE.SRGBColorSpace;
-  paleoTexture.colorSpace = THREE.SRGBColorSpace;
+  const earthGroup =
+    useRef<THREE.Group>(null);
 
   useFrame(() => {
-    if (earthRef.current) {
-      earthRef.current.rotation.y += 0.0015;
+    if (earthGroup.current) {
+      earthGroup.current.rotation.y +=
+        0.0015;
     }
   });
 
-  const isPresent = time === 0;
-
   return (
     <>
-      <mesh ref={earthRef}>
-        {/* Base Earth */}
-        <sphereGeometry
-          args={[EARTH_RADIUS, 64, 64]}
-        />
-
-        {isPresent ? (
-          <meshStandardMaterial
-            map={dayTexture}
-            normalMap={normalTexture}
-            roughness={0.75}
-            metalness={0.05}
-          />
+      <group ref={earthGroup}>
+        {time === 0 ? (
+          <PresentEarth />
         ) : (
-          <meshStandardMaterial
-            color="#06152f"
-            roughness={0.9}
-            metalness={0}
-          />
+          <Suspense fallback={null}>
+            <PaleoEarth time={time} />
+          </Suspense>
         )}
 
-        {/* Reconstructed paleo-Earth */}
-        {time > 0 && (
-          <mesh
-            scale={[
-              1 +
-                PALEO_MAP_OFFSET / EARTH_RADIUS,
-              1 +
-                PALEO_MAP_OFFSET / EARTH_RADIUS,
-              1 +
-                PALEO_MAP_OFFSET / EARTH_RADIUS,
-            ]}
-          >
-            <sphereGeometry
-              args={[EARTH_RADIUS, 64, 64]}
-            />
-
-            <meshBasicMaterial
-              map={paleoTexture}
-              transparent
-              depthWrite={false}
-            />
-          </mesh>
-        )}
-
-        {/* Lucknow paleo-position marker */}
+        {/* Lucknow marker */}
         <LocationMarker
           latitude={latitude}
           longitude={longitude}
         />
-      </mesh>
+      </group>
 
       {/* Atmosphere */}
       <mesh scale={1.025}>
-        <sphereGeometry args={[2, 64, 64]} />
+        <sphereGeometry
+          args={[
+            EARTH_RADIUS,
+            64,
+            64,
+          ]}
+        />
 
         <meshBasicMaterial
           color="#4da6ff"
@@ -109,7 +163,9 @@ export default function Earth({
           opacity={0.18}
           side={THREE.BackSide}
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
+          blending={
+            THREE.AdditiveBlending
+          }
         />
       </mesh>
     </>
